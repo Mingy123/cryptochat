@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+	<form class="auth-form" action="/my-groups" method="get">
+    	<label for="uuid">UUID:</label>
+    	<input type="text" id="uuid" name="uuid"><br>
+    	<label for="content">Message:</label>
+    	<input type="text" id="content" name="content"><br>
+    	<label for="signature">Signature:</label>
+    	<input type="text" id="signature" name="signature"><br>
+
+		<br>
+		<input type="submit" value="Submit">
+	</form>
+
+	<script>
+		var forms = document.querySelectorAll('.auth-form');
+		for (var i = 0; i < forms.length; i++) {
+		  forms[i].addEventListener('submit', function(event) {
+		    event.preventDefault();
+		    var xhr = new XMLHttpRequest();
+		    xhr.open(event.target.method, event.target.action, true);
+		    xhr.setRequestHeader('X-Pubkey', '03feba6c9fe8fa1be3a54755df3e32aae6baa507c569c602ac3bc94e180da4af27');
+		    xhr.setRequestHeader('X-Signature', '3045022100c2b273bef5daeea9e19e14079390fb76c5d7e4c18cf1a420ad613472cc1a7b730220480294b5fb8abfd18749b98607fdbcd239d8bd012c173ba662b0c84a1ba562e3');
+		    xhr.onreadystatechange = function() {
+		      if (xhr.readyState === 4 && xhr.status === 200) {
+				console.log(xhr.responseText);
+		      }
+		    };
+		    xhr.send(new FormData(event.target));
+		  });
+		}
+	</script>
+
+</body>
+</html>

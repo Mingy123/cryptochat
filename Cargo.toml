@@ -1,0 +1,19 @@
+[package]
+name = "cs4131"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rocket = { version = "0.5.0-rc.2", features = ["json"] }
+serde = { version = "1.0", features = ["derive"] }
+k256 = "0.13.0"
+hex = "0.4.3"
+rand = "0.8.5"
+
+[dependencies.uuid]
+version = "1.3.0"
+features = [ "v4" ]
+
+[dependencies.rocket_db_pools]
+version = "0.1.0-rc.2"
+features = ["sqlx_sqlite"]

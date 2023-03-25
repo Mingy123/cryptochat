@@ -1,0 +1,18 @@
+sqlite> pragma table_info(users);
+0|pubkey|varchar(66)|0||1
+1|username|varchar(32)|0||0
+2|nonce|varchar(64)|0||0
+
+sqlite> pragma table_info(groups);
+0|uuid|varchar(36)|0||1
+1|name|varchar(64)|0||0
+2|members|varchar|0||0
+3|owner|varchar(66)|0||0
+
+sqlite> pragma table_info(messages);
+0|uuid|varchar(36)|0||0
+1|content|varchar(1024)|0||0
+2|sender|varchar(66)|0||0
+3|signature|varchar(142)|0||0
+4|timestamp|INTEGER|0||0
+5|hash|varchar(32)|0||0
