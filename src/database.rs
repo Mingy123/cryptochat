@@ -43,6 +43,7 @@ macro_rules! query_gen {
 #[macro_export]
 macro_rules! user_in_group {
     ($uuid:expr, $user:expr, $conn:expr) => {{
+        println!("check");
         let mut ans = -1;
         if let Ok(members) = sqlx::query("SELECT members FROM groups WHERE uuid = ?")
             .bind($uuid).fetch_one($conn).await
@@ -51,6 +52,7 @@ macro_rules! user_in_group {
                 .split(',').collect();
             let mut inner = 1;
             for pk in &list {
+                println!("{}, {}", pk, $user);
                 if pk.eq($user) {
                     inner = 0;
                     break;
@@ -58,6 +60,7 @@ macro_rules! user_in_group {
             }
             ans = inner;
         }
+        println!("{ans}");
         ans
     }};
 }

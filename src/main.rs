@@ -91,19 +91,21 @@ impl<'r> FromRequest<'r> for User {
 
 // the fucking eventstream thing
 struct MessageChannels { map: Mutex<HashMap<String, Sender<ChatMessage>>> }
-#[get("/subscribe?<uuid>")]
-async fn subscribe(uuid: String, user: User, mut db: Connection<ChatDB>,
+#[derive(FromForm)] struct SubscribeForm { uuid: String }
+#[post("/subscribe", data = "<form>")]
+async fn subscribe(form: Form<SubscribeForm>, user: User, mut db: Connection<ChatDB>,
         state: &State<MessageChannels>, mut end: Shutdown) -> Option<EventStream![]> {
-    if user_in_group!(&uuid, &user.pubkey, &mut *db) != 0 { return None }
+    println!("{}, {}", &form.uuid, &user.pubkey);
+    if user_in_group!(&form.uuid, &user.pubkey, &mut *db) != 0 { println!("nogroup");return None }
 
     let mut lock = state.map.lock().expect("lock issue");
-    let channel = match lock.get(&uuid) {
+    let channel = match lock.get(&form.uuid) {
         Some(val) => val,
         _ => {
             println!("creating new channel...");
             let channel = channel::<ChatMessage>(1024).0;
-            lock.insert(uuid.clone(), channel);
-            lock.get(&uuid).expect("what the fuck?!?!?")
+            lock.insert(form.uuid.clone(), channel);
+            lock.get(&form.uuid).expect("what the fuck?!?!?")
         }
     };
     let mut rx = channel.subscribe();
@@ -167,15 +169,15 @@ async fn send_message(form: Form<MessageRequest>, user: User,
             lock.get(&form.uuid).expect("what the fuck?!?!?")
         }
     };
-    if sender.send(ChatMessage {
+
+    // A send 'fails' if there are no active subscribers. That's okay.
+    let _ = sender.send(ChatMessage {
         content: form.content.clone(),
         sender: user.pubkey,
         signature: form.signature.clone(),
         timestamp: timestamp.into(),
         hash: hash.into()
-    }).is_err() {
-        println!("warning: sent message was not sent to the channel")
-    }
+    });
 
     "success"
 }
