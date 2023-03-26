@@ -41,7 +41,6 @@ struct User {
 
 #[derive(Serialize, Clone)]
 struct ChatMessage {
-    group: Option<String>,
     content: String,
     sender: String,
     signature: String,
@@ -158,7 +157,6 @@ async fn send_message(form: Form<MessageRequest>, user: User,
     ).bind(&form.uuid).bind(&form.content).bind(&user.pubkey).bind(&form.signature)
     .bind(&timestamp).bind(hash.to_string()), &mut *db);
 
-    // TODO: send something to the eventstream
     let mut lock = state.map.lock().expect("lock issue");
     let sender = match lock.get(&form.uuid) {
         Some(val) => val,
@@ -170,7 +168,6 @@ async fn send_message(form: Form<MessageRequest>, user: User,
         }
     };
     if sender.send(ChatMessage {
-        group: Some(form.uuid.clone()),
         content: form.content.clone(),
         sender: user.pubkey,
         signature: form.signature.clone(),
@@ -183,22 +180,34 @@ async fn send_message(form: Form<MessageRequest>, user: User,
     "success"
 }
 
+
+/* im using a form bcos i cant find a way to get parameters from a GET request
+which also has to be validated by the User FromRequest thing
+works without parameters tho */
+#[derive(FromForm)]
+struct MessagesQuery { timestamp: i64, uuid: String }
+#[post("/messages", data = "<form>")]
+async fn messages_before(form: Form<MessagesQuery>, user: User,
+        mut db: Connection<ChatDB>) -> Option<Json<Vec<ChatMessage>>> {
+    if user_in_group!(&form.uuid, &user.pubkey, &mut *db) != 0 { return None }
+    let query = match sqlx::query(
+            "SELECT * FROM messages WHERE uuid = ? AND timestamp < ? ORDER BY timestamp DESC LIMIT 50"
+        ).bind(&form.uuid).bind(form.timestamp).fetch_all(&mut *db).await {
+            Ok(val) => val,
+            _ => return None
+        };
+    Some(Json(query.iter().map(|row| message_from_row!(row)).collect()))
+}
+
 #[get("/message-info?<hash>")]
-async fn message_info(hash: String, mut db: Connection<ChatDB>) -> Option<Json<ChatMessage>> {
+async fn message_info(hash: String, mut db: Connection<ChatDB>) -> Option<Json<(String, ChatMessage)>> {
     let ans = match query_gen!(sqlx::query(
             "SELECT * FROM messages WHERE hash = ?"
         ).bind(&hash), &mut *db) {
             Ok(val) => val,
             _ => return None
         };
-    Some(Json(ChatMessage{
-        group: Some(ans.get(0)),
-        content: ans.get(1),
-        sender: ans.get(2),
-        signature: ans.get(3),
-        timestamp: ans.get(4),
-        hash: ans.get::<String, _>(5).parse().unwrap(),
-    }))
+    Some(Json((ans.get(0), message_from_row!(ans))))
 }
 
 
@@ -262,13 +271,11 @@ async fn join_group(form: Form<GroupForm>, user: User,
 #[post("/rename-group", data = "<form>")]
 async fn rename_group(form: Form<GroupForm>, user: User,
         mut db: Connection<ChatDB>) -> &'static str {
-    // check that the user is the owner of the group
-    let res: Option<String> = query_one!(sqlx::query(
-            "SELECT owner FROM groups WHERE uuid = ?"
-        ).bind(&form.uuid), &mut *db);
-    if let Some(val) = res {
-        if !val.eq(&user.pubkey) {return "not owner";}
-    } else {return "no such group"}
+    match user_is_owner!(&form.uuid, &user.pubkey, &mut *db) {
+        1 => return "not owner",
+        -1 => return "no such group",
+        _ => {}
+    };
 
     let _ = query_gen!(sqlx::query(
         "UPDATE groups SET name = ? WHERE uuid = ?"
@@ -279,13 +286,11 @@ async fn rename_group(form: Form<GroupForm>, user: User,
 #[post("/change-group-owner", data = "<form>")]
 async fn change_group_owner(form: Form<GroupForm>,
         user: User, mut db: Connection<ChatDB>) -> &'static str {
-    // check that the user is the owner of the group
-    let res: Option<String> = query_one!(sqlx::query(
-            "SELECT owner FROM groups WHERE uuid = ?"
-        ).bind(&form.uuid), &mut *db);
-    if let Some(val) = res {
-        if !val.eq(&user.pubkey) {return "not owner";}
-    } else {return "no such group"}
+    match user_is_owner!(&form.uuid, &user.pubkey, &mut *db) {
+        1 => return "not owner",
+        -1 => return "no such group",
+        _ => {}
+    };
 
     // check owner exists
     let res: Option<String> = query_one!(sqlx::query(
@@ -314,14 +319,7 @@ async fn group_info(uuid: String, mut db: Connection<ChatDB>) -> Option<Json<Cha
     let messages = match sqlx::query(
             "SELECT * FROM messages WHERE uuid = ? ORDER BY timestamp DESC LIMIT 50"
         ).bind(&uuid).fetch_all(&mut *db).await {
-            Ok(res) => res.iter().map(|row| ChatMessage {
-                group: None,
-                content: row.get(1),
-                sender: row.get(2),
-                signature: row.get(3),
-                timestamp: row.get::<i64, _>(4),
-                hash: row.get::<String, _>(5).parse().unwrap()
-                }).collect(),
+            Ok(res) => res.iter().map(|row| message_from_row!(row)).collect(),
             _ => Vec::new()
         };
     Some(Json(ChatGroup {
@@ -413,6 +411,6 @@ fn rocket() -> _ {
         .manage(MessageChannels{map: Mutex::new(HashMap::new())})
         .mount("/", routes![index, joined_groups, create_group, group_info,
             user_info, join_group, rename_group, change_group_owner,
-            send_message, message_info, subscribe, delete_group,
+            messages_before, send_message, message_info, subscribe, delete_group,
             reset_nonce, confirm_reset_nonce])
 }

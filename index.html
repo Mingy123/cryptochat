@@ -2,15 +2,74 @@
 <html>
 <body>
 
-	<form class="auth-form" action="/my-groups" method="get">
+	<h2>Send a message</h2>
+	<form class="auth-form" action="/send" method="post">
     	<label for="uuid">UUID:</label>
-    	<input type="text" id="uuid" name="uuid"><br>
+    	<input type="text" name="uuid"><br>
     	<label for="content">Message:</label>
-    	<input type="text" id="content" name="content"><br>
+    	<input type="text" name="content"><br>
     	<label for="signature">Signature:</label>
-    	<input type="text" id="signature" name="signature"><br>
+    	<input type="text" name="signature"><br>
 
 		<br>
+		<input type="submit" value="Submit">
+	</form><br><br>
+
+	<h3>Rename group</h3>
+	<form class="auth-form" action="/rename-group" method="post">
+    	<label for="uuid">UUID:</label>
+    	<input type="text" name="uuid"><br>
+    	<label for="name">New Name:</label>
+    	<input type="text" name="name"><br>
+
+		<br>
+		<input type="submit" value="Submit">
+	</form><br><br>
+
+	<h3>Delete group</h3>
+	<form class="auth-form" action="/delete-group" method="post">
+    	<label for="uuid">UUID:</label>
+    	<input type="text" name="uuid"><br><br>
+		<input type="submit" value="Submit">
+	</form><br><br>
+
+	<h3>Messages in group</h3>
+	<form class="auth-form" action="/messages" method="post">
+    	<label for="timestamp">Timestamp:</label>
+    	<input type="text" id="timestamp" name="timestamp"><br>
+    	<label for="uuid">UUID:</label>
+    	<input type="text" id="uuid" name="uuid"><br><br>
+		<input type="submit" value="Submit">
+	</form><br><br>
+
+	<h4>Get user info</h4>
+	<form action="/user-info" method="get">
+    	<label for="pubkey">Public Key:</label>
+    	<input type="text" name="pubkey"><br><br>
+		<input type="submit" value="Submit">
+	</form>
+
+	<h4>Get group info</h4>
+	<form action="/group-info" method="get">
+    	<label for="uuid">UUID:</label>
+    	<input type="text" name="uuid"><br><br>
+		<input type="submit" value="Submit">
+	</form>
+
+	<h4>Get message info</h4>
+	<form action="/message-info" method="get">
+    	<label for="hash">Hash:</label>
+    	<input type="text" name="hash"><br><br>
+		<input type="submit" value="Submit">
+	</form>
+
+	<p>Get Groups</p>
+	<form class="auth-form" action="/my-groups" method="get">
+		<input type="submit" value="Submit">
+	</form>
+
+	<p>Create Group</p>
+	<form class="auth-form" action="/create-group" method="post">
 		<input type="submit" value="Submit">
 	</form>
 

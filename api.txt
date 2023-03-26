@@ -5,7 +5,6 @@ struct User {
 }
 
 struct ChatMessage {
-    group: Option<String>,
     content: String,
     sender: String,
     signature: String,
@@ -49,7 +48,7 @@ struct ResetForm {
 (form: Form<MessageRequest>, user: User) -> &'static str
 
 #[get("/message-info?<hash>")]
-(hash: String) -> Option<Json<ChatMessage>>
+(hash: String) -> Option<Json<(String, ChatMessage)>>
 
 #[post("/create-group")]
 (user: User) -> String

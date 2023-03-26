@@ -62,5 +62,32 @@ macro_rules! user_in_group {
     }};
 }
 
-//SELECT * FROM messages ORDER BY timestamp DESC LIMIT 50;
-//SELECT * FROM messages WHERE uuid = 'asd' AND timestamp < 12345 ORDER BY timestamp DESC LIMIT 50;
+// 0: is owner | 1: not owner | -1: group does not exist
+#[macro_export]
+macro_rules! user_is_owner {
+    ($uuid:expr, $pubkey:expr, $conn:expr) => {{
+        let mut ans = -1;
+        if let Ok(owner) = sqlx::query("SELECT owner FROM groups WHERE uuid = ?")
+            .bind($uuid).fetch_one($conn).await
+        {
+            if owner.get::<String, _>(0).eq($pubkey) { ans = 0 }
+            else { ans = 1 }
+        }
+        ans
+    }};
+}
+
+// WARNING: this may panic
+// make sure that the query is "SELECT * FROM messages ..."
+#[macro_export]
+macro_rules! message_from_row {
+    ($row:expr) => {{
+        ChatMessage {
+            content: $row.get(1),
+            sender: $row.get(2),
+            signature: $row.get(3),
+            timestamp: $row.get(4),
+            hash: $row.get::<String, _>(5).parse().unwrap()
+        }
+    }};
+}
