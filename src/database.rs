@@ -62,16 +62,5 @@ macro_rules! user_in_group {
     }};
 }
 
-pub fn join_results<T, U>(items: Vec<Result<T, U>>) -> Option<Vec<T>> {
-    let mut result = Vec::new();
-    for item in items {
-        match item {
-            Ok(value) => result.push(value),
-            Err(_) => return None,
-        }
-    }
-    Some(result)
-}
-
 //SELECT * FROM messages ORDER BY timestamp DESC LIMIT 50;
 //SELECT * FROM messages WHERE uuid = 'asd' AND timestamp < 12345 ORDER BY timestamp DESC LIMIT 50;

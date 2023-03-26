@@ -1,17 +1,41 @@
-sqlite> pragma table_info(users);
+pragma foreign_keys = ON;
+
+create table users (
+    pubkey varchar(66) primary key,
+    username varchar(32),
+    nonce varchar(64
+);
+create table groups (
+    uuid varchar(36) primary key,
+    name varchar(64)
+    members varchar
+    owner varchar(66)
+    foreign key(owner) references users(pubkey) on delete cascade
+);
+create table messages
+    uuid varchar(36),
+    content varchar
+    sender varchar(66)
+    signature varchar(142)
+    timestamp INTEGER
+    hash varchar(32)
+    foreign key(uuid) references groups(uuid) on delete cascade
+);
+
+pragma table_info(users);
 0|pubkey|varchar(66)|0||1
 1|username|varchar(32)|0||0
 2|nonce|varchar(64)|0||0
 
-sqlite> pragma table_info(groups);
+pragma table_info(groups);
 0|uuid|varchar(36)|0||1
 1|name|varchar(64)|0||0
 2|members|varchar|0||0
 3|owner|varchar(66)|0||0
 
-sqlite> pragma table_info(messages);
+pragma table_info(messages);
 0|uuid|varchar(36)|0||0
-1|content|varchar(1024)|0||0
+1|content|varchar|0||0
 2|sender|varchar(66)|0||0
 3|signature|varchar(142)|0||0
 4|timestamp|INTEGER|0||0

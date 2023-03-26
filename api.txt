@@ -1,0 +1,79 @@
+struct User {
+    pubkey: String,
+    username: String,
+    nonce: String
+}
+
+struct ChatMessage {
+    group: Option<String>,
+    content: String,
+    sender: String,
+    signature: String,
+    timestamp: i64,
+    hash: u64
+}
+
+struct ChatGroup {
+    uuid: String,
+    name: String,
+    members: Vec<String>,
+    owner: String,
+    messages: Vec<ChatMessage>
+}
+
+struct MessageRequest {
+    uuid: String,
+    content: String,
+    signature: String
+}
+
+struct GroupForm {
+    uuid: String,
+    #[field(default = "")]
+    name: String,
+    #[field(default = "")]
+    owner: String
+}
+
+struct ResetForm {
+    pubkey: String,
+    signature: String,
+}
+
+
+
+#[get("/subscribe?<uuid>")]
+(uuid: String, user: User) -> Option<EventStream![]>
+
+#[post("/send", data = "<form>")]
+(form: Form<MessageRequest>, user: User) -> &'static str
+
+#[get("/message-info?<hash>")]
+(hash: String) -> Option<Json<ChatMessage>>
+
+#[post("/create-group")]
+(user: User) -> String
+
+#[post("/join-group", data = "<form>")]
+(form: Form<GroupForm>, user: User) -> &'static str
+
+#[post("/rename-group", data = "<form>")]
+(form: Form<GroupForm>, user: User) -> &'static str
+
+#[post("/change-group-owner", data = "<form>")]
+(form: Form<GroupForm>, user: User) -> &'static str
+
+#[get("/group-info?<uuid>")]
+(uuid: String) -> Option<Json<ChatGroup>>
+
+#[post("/delete-group", data = "<form>")]
+(form: Form<GroupForm>, user: User) -> &'static str
+
+#[get("/user-info?<pubkey>")]
+(pubkey: String) -> Option<Json<User>>
+
+#[get("/reset-nonce?<pubkey>")]
+(pubkey: String) -> String
+
+#[post("/reset-nonce", data = "<form>")]
+(form: Form<ResetForm>) -> &'static str

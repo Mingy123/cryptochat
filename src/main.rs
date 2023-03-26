@@ -9,7 +9,7 @@ use database::*;
 use rand::{thread_rng, Rng};
 use rocket::{State, Shutdown};
 use rocket::form::Form;
-use rocket::fs::{relative, FileServer, NamedFile};
+use rocket::fs::NamedFile;
 use rocket::http::Status;
 use rocket::request::{FromRequest, Outcome};
 use rocket::response::stream::{EventStream, Event};
@@ -197,13 +197,13 @@ async fn message_info(hash: String, mut db: Connection<ChatDB>) -> Option<Json<C
         sender: ans.get(2),
         signature: ans.get(3),
         timestamp: ans.get(4),
-        hash: ans.get::<String, usize>(5).parse().unwrap(),
+        hash: ans.get::<String, _>(5).parse().unwrap(),
     }))
 }
 
 
 // GROUP OPERATIONS
-#[derive(FromForm)]
+#[derive(FromForm, Serialize)]
 struct GroupForm {
     uuid: String,
     #[field(default = "")]
@@ -212,25 +212,25 @@ struct GroupForm {
     owner: String
 }
 
-// list groups user is in : csv of uuids
+// list groups user is in
 #[get("/my-groups")]
-async fn joined_groups(user: User, mut db: Connection<ChatDB>) -> Option<String> {
+async fn joined_groups(user: User, mut db: Connection<ChatDB>) -> Option<Json<Vec<GroupForm>>> {
     let pk = format!("%{}%", user.pubkey);
     let query = 
-        sqlx::query("SELECT uuid FROM groups WHERE members like ?").bind(pk);
+        sqlx::query("SELECT * FROM groups WHERE members like ?").bind(pk);
     let result = match query.fetch_all(&mut *db).await {
         Ok(val) => {
-            let results = join_results(val.iter().map(
-                |row| row.try_get::<String, _>(0)
-            ).collect());
-            match results {
-                Some(val) => val.join(","),
-                _ => return None
-            }
+            val.iter().map(
+                |row| GroupForm {
+                    uuid: row.get(0),
+                    name: row.get(1),
+                    owner: row.get(2)
+                }
+            ).collect()
         },
         _ => return None
     };
-    Some(result)
+    Some(Json(result))
 }
 
 // create a group. returns uuid
@@ -259,9 +259,9 @@ async fn join_group(form: Form<GroupForm>, user: User,
     "success"
 }
 
-#[post("/change-group-name", data = "<form>")]
-async fn change_group_name(form: Form<GroupForm>,
-        user: User, mut db: Connection<ChatDB>) -> &'static str {
+#[post("/rename-group", data = "<form>")]
+async fn rename_group(form: Form<GroupForm>, user: User,
+        mut db: Connection<ChatDB>) -> &'static str {
     // check that the user is the owner of the group
     let res: Option<String> = query_one!(sqlx::query(
             "SELECT owner FROM groups WHERE uuid = ?"
@@ -273,7 +273,7 @@ async fn change_group_name(form: Form<GroupForm>,
     let _ = query_gen!(sqlx::query(
         "UPDATE groups SET name = ? WHERE uuid = ?"
     ).bind(&form.name).bind(&form.uuid), &mut *db);
-    "done"
+    "success"
 }
 
 #[post("/change-group-owner", data = "<form>")]
@@ -296,7 +296,7 @@ async fn change_group_owner(form: Form<GroupForm>,
     let _ = query_gen!(sqlx::query(
         "UPDATE groups SET owner = ? WHERE uuid = ?"
     ).bind(&form.owner).bind(&form.uuid), &mut *db);
-    "done"
+    "success"
 }
 
 // last few msgs + name + members??
@@ -307,7 +307,7 @@ async fn group_info(uuid: String, mut db: Connection<ChatDB>) -> Option<Json<Cha
             Ok(val) => val,
             _ => return None
         };
-    let members = row.get::<String, usize>(2).split(',').map(
+    let members = row.get::<String, _>(2).split(',').map(
         |s| s.to_string()).collect();
 
     // 1:content, 2:sender, 3:signature, 4:timestamp, 5:hash
@@ -319,8 +319,8 @@ async fn group_info(uuid: String, mut db: Connection<ChatDB>) -> Option<Json<Cha
                 content: row.get(1),
                 sender: row.get(2),
                 signature: row.get(3),
-                timestamp: row.get::<i64, usize>(4),
-                hash: row.get::<String, usize>(5).parse().unwrap()
+                timestamp: row.get::<i64, _>(4),
+                hash: row.get::<String, _>(5).parse().unwrap()
                 }).collect(),
             _ => Vec::new()
         };
@@ -330,6 +330,24 @@ async fn group_info(uuid: String, mut db: Connection<ChatDB>) -> Option<Json<Cha
         owner: row.get(3),
         members, messages
     }))
+}
+
+// delete group
+#[post("/delete-group", data = "<form>")]
+async fn delete_group(form: Form<GroupForm>, user: User,
+        mut db: Connection<ChatDB>) -> &'static str {
+    let owner: String = match query_one!(sqlx::query(
+        "SELECT owner FROM groups WHERE uuid = ?"
+    ).bind(&form.uuid), &mut *db) {
+        Some(val) => val,
+        _ => return "no such group"
+    };
+    if owner.eq(&user.pubkey) {
+        let _ = query_gen!(sqlx::query(
+            "DELETE FROM groups where uuid = ?"
+        ).bind(&form.uuid), &mut *db);
+    }
+    "success"
 }
 
 #[get("/user-info?<pubkey>")]
@@ -379,7 +397,7 @@ async fn confirm_reset_nonce(form: Form<ResetForm>, state: &State<TempNonce>,
     if !verify_msg(&form.pubkey, &form.signature, &nonce) { return "incorrect" }
     let _ = query_gen!(sqlx::query("UPDATE users SET nonce = ? WHERE pubkey = ?")
         .bind(nonce).bind(&form.pubkey), &mut *db);
-    "done"
+    "success"
 }
 
 #[get("/")]
@@ -394,7 +412,7 @@ fn rocket() -> _ {
         .manage(TempNonce{map: Mutex::new(HashMap::new())})
         .manage(MessageChannels{map: Mutex::new(HashMap::new())})
         .mount("/", routes![index, joined_groups, create_group, group_info,
-            user_info, join_group, change_group_name, change_group_owner,
-            send_message, message_info, subscribe,
+            user_info, join_group, rename_group, change_group_owner,
+            send_message, message_info, subscribe, delete_group,
             reset_nonce, confirm_reset_nonce])
 }
