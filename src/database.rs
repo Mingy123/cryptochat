@@ -4,28 +4,10 @@ use k256::ecdsa::{VerifyingKey, Signature, signature::Verifier};
 
 pub fn verify_msg (pubkey: &str, signature: &str, message: &str) -> bool {
     // allow for "generic" r and s implementations
-    let sig;
-    if signature.contains(',') {
-        let spl: Vec<&str> = signature.split(',').map(|item|
-            item.trim()).collect();
-        let mut append = spl[0].to_owned();
-        append.push_str(spl[1]);
-
-        println!("{}", &append);
-        sig = match Signature::from_str(&append) {
-            Ok(val) => val,
-            _ => return false
-        };
-        println!("DER: {:x?}", hex::encode(sig.to_der().as_bytes()));
-    } else { sig = match Signature::from_der(
-        match &hex::decode(signature) {
-            Ok(val) => val,
-            _ => return false
-        }
-    ) {
-        Ok(val) => val,
+    let sig = match parse_signature(signature) {
+        Some(val) => val,
         _ => return false
-    }};
+    };
 
     let pk = match VerifyingKey::from_sec1_bytes(
         match &hex::decode(pubkey) {
@@ -37,6 +19,45 @@ pub fn verify_msg (pubkey: &str, signature: &str, message: &str) -> bool {
         _ => return false
     };
     pk.verify(message.as_bytes(), &sig).is_ok()
+}
+
+pub fn convert_signature(signature: &str) -> Option<String> {
+    let sig = match parse_signature(signature) {
+        Some(val) => val,
+        _ => return None
+    };
+
+    let mut ans = sig.r().to_string();
+    ans.push(',');
+    ans.push_str(&sig.s().to_string());
+    Some(ans)
+}
+
+fn parse_signature(signature: &str) -> Option<Signature> {
+    let sig;
+    if signature.contains(',') {
+        let spl: Vec<&str> = signature.split(',').map(|item|
+            item.trim()).collect();
+        let mut append = spl[0].to_owned();
+        append.push_str(spl[1]);
+
+        println!("{}", &append);
+        sig = match Signature::from_str(&append) {
+            Ok(val) => val,
+            _ => return None
+        };
+        println!("DER: {:x?}", hex::encode(sig.to_der().as_bytes()));
+    } else { sig = match Signature::from_der(
+        match &hex::decode(signature) {
+            Ok(val) => val,
+            _ => return None
+        }
+    ) {
+        Ok(val) => val,
+        _ => return None
+    }};
+
+    Some(sig)
 }
 
 #[macro_export]

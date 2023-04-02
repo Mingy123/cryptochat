@@ -154,7 +154,8 @@ async fn send_message(form: Form<MessageRequest>, user: User,
     // INSERT INTO messages VALUES(uuid, content, sender, signature, timestamp, hash)
     let _ = query_gen!(sqlx::query(
         "INSERT INTO messages VALUES(?, ?, ?, ?, ?, ?)"
-    ).bind(&form.uuid).bind(&form.content).bind(&user.pubkey).bind(form.signature.to_string())
+    ).bind(&form.uuid).bind(&form.content).bind(&user.pubkey)
+    .bind(convert_signature(&form.signature))
     .bind(&timestamp).bind(hash.to_string()), &mut *db);
 
     let mut lock = state.map.lock().expect("lock issue");
