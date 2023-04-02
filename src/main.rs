@@ -95,14 +95,12 @@ struct MessageChannels { map: Mutex<HashMap<String, Sender<ChatMessage>>> }
 #[post("/subscribe", data = "<form>")]
 async fn subscribe(form: Form<SubscribeForm>, user: User, mut db: Connection<ChatDB>,
         state: &State<MessageChannels>, mut end: Shutdown) -> Option<EventStream![]> {
-    println!("{}, {}", &form.uuid, &user.pubkey);
-    if user_in_group!(&form.uuid, &user.pubkey, &mut *db) != 0 { println!("nogroup");return None }
+    if user_in_group!(&form.uuid, &user.pubkey, &mut *db) != 0 { return None }
 
     let mut lock = state.map.lock().expect("lock issue");
     let channel = match lock.get(&form.uuid) {
         Some(val) => val,
         _ => {
-            println!("creating new channel...");
             let channel = channel::<ChatMessage>(1024).0;
             lock.insert(form.uuid.clone(), channel);
             lock.get(&form.uuid).expect("what the fuck?!?!?")
@@ -156,14 +154,13 @@ async fn send_message(form: Form<MessageRequest>, user: User,
     // INSERT INTO messages VALUES(uuid, content, sender, signature, timestamp, hash)
     let _ = query_gen!(sqlx::query(
         "INSERT INTO messages VALUES(?, ?, ?, ?, ?, ?)"
-    ).bind(&form.uuid).bind(&form.content).bind(&user.pubkey).bind(&form.signature)
+    ).bind(&form.uuid).bind(&form.content).bind(&user.pubkey).bind(form.signature.to_string())
     .bind(&timestamp).bind(hash.to_string()), &mut *db);
 
     let mut lock = state.map.lock().expect("lock issue");
     let sender = match lock.get(&form.uuid) {
         Some(val) => val,
         _ => {
-            println!("creating new channel...");
             let channel = channel::<ChatMessage>(1024).0;
             lock.insert(form.uuid.clone(), channel);
             lock.get(&form.uuid).expect("what the fuck?!?!?")
