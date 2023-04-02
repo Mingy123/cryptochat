@@ -3,22 +3,22 @@ pragma foreign_keys = ON;
 create table users (
     pubkey varchar(66) primary key,
     username varchar(32),
-    nonce varchar(64
+    nonce varchar(64)
 );
 create table groups (
     uuid varchar(36) primary key,
-    name varchar(64)
-    members varchar
-    owner varchar(66)
+    name varchar(64),
+    members varchar,
+    owner varchar(66),
     foreign key(owner) references users(pubkey) on delete cascade
 );
 create table messages
     uuid varchar(36),
-    content varchar
-    sender varchar(66)
-    signature varchar(142)
-    timestamp INTEGER
-    hash varchar(32)
+    content varchar,
+    sender varchar(66),
+    signature varchar(142),
+    timestamp INTEGER,
+    hash varchar(32),
     foreign key(uuid) references groups(uuid) on delete cascade
 );
 

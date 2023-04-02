@@ -1,19 +1,34 @@
+use std::str::FromStr;
+
 use k256::ecdsa::{VerifyingKey, Signature, signature::Verifier};
 
-/* NOTE: the signature is DER encoded
-because i cant find another way to deserialise it */
 pub fn verify_msg (pubkey: &str, signature: &str, message: &str) -> bool {
-    let pk = match VerifyingKey::from_sec1_bytes(
-        match &hex::decode(pubkey) {
+    // allow for "generic" r and s implementations
+    let sig;
+    if signature.contains(',') {
+        let spl: Vec<&str> = signature.split(',').map(|item|
+            item.trim()).collect();
+        let mut append = spl[0].to_owned();
+        append.push_str(spl[1]);
+
+        println!("{}", &append);
+        sig = match Signature::from_str(&append) {
+            Ok(val) => val,
+            _ => return false
+        };
+        println!("DER: {:x?}", hex::encode(sig.to_der().as_bytes()));
+    } else { sig = match Signature::from_der(
+        match &hex::decode(signature) {
             Ok(val) => val,
             _ => return false
         }
     ) {
         Ok(val) => val,
         _ => return false
-    };
-    let sig = match Signature::from_der(
-        match &hex::decode(signature) {
+    }};
+
+    let pk = match VerifyingKey::from_sec1_bytes(
+        match &hex::decode(pubkey) {
             Ok(val) => val,
             _ => return false
         }
