@@ -134,11 +134,11 @@ struct MessageRequest {
 
 #[post("/send", data = "<form>")]
 async fn send_message(form: Form<MessageRequest>, user: User,
-        mut db: Connection<ChatDB>, state: &State<MessageChannels>) -> &'static str {
+        mut db: Connection<ChatDB>, state: &State<MessageChannels>) -> String {
     if user_in_group!(&form.uuid, &user.pubkey, &mut *db) != 0 {
-        return "unprivileged"
+        return "unprivileged".to_string()
     } if !verify_msg(&user.pubkey, &form.signature, &form.content) {
-        return "signature fail"
+        return "signature fail".to_string()
     }
 
     // unix epoch thingy (Y2K38) is for i32. i64 should be perfectly fine
@@ -177,7 +177,7 @@ async fn send_message(form: Form<MessageRequest>, user: User,
         hash: hash.into()
     });
 
-    "success"
+    hash.to_string()
 }
 
 
