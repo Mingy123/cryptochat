@@ -41,12 +41,10 @@ fn parse_signature(signature: &str) -> Option<Signature> {
         let mut append = spl[0].to_owned();
         append.push_str(spl[1]);
 
-        println!("{}", &append);
         sig = match Signature::from_str(&append) {
             Ok(val) => val,
             _ => return None
         };
-        println!("DER: {:x?}", hex::encode(sig.to_der().as_bytes()));
     } else { sig = match Signature::from_der(
         match &hex::decode(signature) {
             Ok(val) => val,
@@ -79,7 +77,6 @@ macro_rules! query_gen {
 #[macro_export]
 macro_rules! user_in_group {
     ($uuid:expr, $user:expr, $conn:expr) => {{
-        println!("check");
         let mut ans = -1;
         if let Ok(members) = sqlx::query("SELECT members FROM groups WHERE uuid = ?")
             .bind($uuid).fetch_one($conn).await
@@ -88,7 +85,6 @@ macro_rules! user_in_group {
                 .split(',').collect();
             let mut inner = 1;
             for pk in &list {
-                println!("{}, {}", pk, $user);
                 if pk.eq($user) {
                     inner = 0;
                     break;
@@ -96,7 +92,6 @@ macro_rules! user_in_group {
             }
             ans = inner;
         }
-        println!("{ans}");
         ans
     }};
 }
