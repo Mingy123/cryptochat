@@ -293,11 +293,7 @@ async fn change_group_owner(form: Form<GroupForm>,
     };
 
     // check owner exists
-    let res: Option<String> = query_one!(sqlx::query(
-        "SELECT pubkey FROM users WHERE pubkey = ?"
-    ).bind(&form.owner), &mut *db);
-    if res.is_none() { return "new owner does not exist" }
-
+    if !user_exists!(&form.owner, &mut *db) { return "new owner does not exist" }
     let _ = query_gen!(sqlx::query(
         "UPDATE groups SET owner = ? WHERE uuid = ?"
     ).bind(&form.owner).bind(&form.uuid), &mut *db);
@@ -373,7 +369,11 @@ struct ResetForm {
 }
 
 #[get("/reset-nonce?<pubkey>")]
-fn reset_nonce(pubkey: String, state: &State<TempNonce>) -> String {
+async fn reset_nonce(pubkey: String, state: &State<TempNonce>,
+        mut db: Connection<ChatDB>) -> String {
+    // check that the user exists
+    if !user_exists!(&pubkey, &mut *db) { return String::from("user does not exist") }
+    
     let mut rng = thread_rng();
     let nonce: String = (0..64).map(|_| {
         let idx = rng.gen_range(0..ALPHANUMERIC.len());

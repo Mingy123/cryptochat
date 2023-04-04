@@ -73,6 +73,17 @@ macro_rules! query_gen {
     }};
 }
 
+#[macro_export]
+macro_rules! user_exists {
+    ($pubkey:expr, $conn:expr) => {{
+        let res: Option<String> = query_one!(sqlx::query(
+            "SELECT pubkey FROM users WHERE pubkey = ?"
+        ).bind($pubkey), $conn);
+        res.is_some()
+    }};
+}
+
+
 // 0: user is in group | 1: user is not in group | -1: group does not exist
 #[macro_export]
 macro_rules! user_in_group {
